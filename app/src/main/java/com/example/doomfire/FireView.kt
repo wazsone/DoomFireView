@@ -6,8 +6,9 @@ import android.graphics.Canvas
 import android.graphics.Paint
 import android.util.AttributeSet
 import android.view.View
-
-
+import java.util.*
+import kotlin.math.max
+import kotlin.math.min
 
 class FireView(context: Context, attrs: AttributeSet?) : View(context, attrs) {
 
@@ -51,37 +52,66 @@ class FireView(context: Context, attrs: AttributeSet?) : View(context, attrs) {
         0xffFFFFFF
     )
 
-    private val firePixels = Array(height) {
-        IntArray(width) { 0 }
-    }.toMutableList()
+    private lateinit var firePixels: Array<IntArray>
 
     private val paint = Paint()
 
     private lateinit var bitmap: Bitmap
+    private lateinit var bitmapPixels: IntArray
+
+    private val random = Random()
+
+    private var fireHeight: Int = 0
+    private var fireWidth: Int = 0
 
     override fun onSizeChanged(w: Int, h: Int, oldw: Int, oldh: Int) {
-        bitmap = Bitmap.createBitmap(w, h, Bitmap.Config.RGB_565);
-        (0..w).forEach { x ->
-            firePixels[x][h - 1] = firePalette.size - 1
+        val aspectRatio = w.toFloat() / h
+        fireWidth = 250
+        fireHeight = (fireWidth / aspectRatio).toInt()
+
+        bitmapPixels = IntArray(fireWidth * fireHeight) { 0 }
+        bitmap = Bitmap.createBitmap(fireWidth, fireHeight, Bitmap.Config.RGB_565)
+        firePixels = Array(fireWidth) { IntArray(fireHeight) { 0 } }
+        (0 until fireWidth).forEach { x ->
+            firePixels[x][fireHeight - 1] = firePalette.size - 1
         }
     }
 
     override fun onDraw(canvas: Canvas?) {
-        drawFire(canvas);
+        spreadFire()
+        drawFire(canvas)
+        invalidate()
+    }
+
+    private fun spreadFire() {
+        for (y in 0 until fireHeight - 1) {
+            for (x in 0 until fireWidth) {
+                val rand_x = random.nextInt(3)
+                val rand_y = random.nextInt(6)
+                val dst_x = min(fireWidth - 1, max(0, x + rand_x - 1))
+                val dst_y = min(fireHeight - 1, y + rand_y)
+                val deltaFire = rand_x and 1 // 0 or 1
+                firePixels[x][y] =
+                    max(0, firePixels[dst_x][dst_y] - deltaFire) // decrease temperature
+            }
+        }
     }
 
     private fun drawFire(canvas: Canvas?) {
-        for (x in 0..width) {
-            for (y in 0..height) {
+        for (x in 0 until fireWidth) {
+            for (y in 0 until fireHeight) {
                 val temperature = when {
                     firePixels[x][y] < 0 -> 0
                     firePixels[x][y] >= firePalette.size -> firePalette.size - 1
                     else -> firePixels[x][y]
                 }
-                bitmap.setPixel(x, y, firePalette[temperature].toInt())
-                canvas?.drawBitmap(bitmap, 0F, 0F, paint)
+                bitmapPixels[fireWidth * y + x] = firePalette[temperature].toInt()
             }
         }
+        bitmap.setPixels(bitmapPixels, 0, fireWidth, 0, 0, fireWidth, fireHeight)
+        val scale = width.toFloat() / fireWidth
+        canvas?.scale(scale, scale)
+        canvas?.drawBitmap(bitmap, 0F, 0F, paint)
     }
 
 }
