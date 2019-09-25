@@ -61,14 +61,17 @@ class FireView(context: Context, attrs: AttributeSet?) : View(context, attrs) {
 
     private val random = Random()
 
-    private var fireHeight: Int = 0
-    private var fireWidth: Int = 0
+    private val fireWidth: Int = 250
+    private val fireHeight: Int by lazy {
+        val aspectRatio = width.toFloat() / height
+        (fireWidth / aspectRatio).toInt()
+    }
+
+    private val viewScale: Float by lazy {
+        width.toFloat() / fireWidth
+    }
 
     override fun onSizeChanged(w: Int, h: Int, oldw: Int, oldh: Int) {
-        val aspectRatio = w.toFloat() / h
-        fireWidth = 250
-        fireHeight = (fireWidth / aspectRatio).toInt()
-
         bitmapPixels = IntArray(fireWidth * fireHeight) { 0 }
         bitmap = Bitmap.createBitmap(fireWidth, fireHeight, Bitmap.Config.RGB_565)
         firePixels = Array(fireWidth) { IntArray(fireHeight) { 0 } }
@@ -86,9 +89,9 @@ class FireView(context: Context, attrs: AttributeSet?) : View(context, attrs) {
     private fun spreadFire() {
         for (y in 0 until fireHeight - 1) {
             for (x in 0 until fireWidth) {
-                val rand_x = random.nextInt(3)
-                val rand_y = random.nextInt(6)
-                val dst_x = min(fireWidth - 1, max(0, x + rand_x - 1))
+                val rand_x = random.nextInt(3) - 1 // -1, 0, 1
+                val rand_y = random.nextInt(10)
+                val dst_x = min(fireWidth - 1, max(0, x + rand_x))
                 val dst_y = min(fireHeight - 1, y + rand_y)
                 val deltaFire = rand_x and 1 // 0 or 1
                 firePixels[x][y] =
@@ -109,8 +112,7 @@ class FireView(context: Context, attrs: AttributeSet?) : View(context, attrs) {
             }
         }
         bitmap.setPixels(bitmapPixels, 0, fireWidth, 0, 0, fireWidth, fireHeight)
-        val scale = width.toFloat() / fireWidth
-        canvas?.scale(scale, scale)
+        canvas?.scale(viewScale, viewScale)
         canvas?.drawBitmap(bitmap, 0F, 0F, paint)
     }
 
